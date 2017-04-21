@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import android.graphics.*;
 import com.synconset.FakeR;
 import android.app.Activity;
 import android.app.ActionBar;
@@ -54,10 +55,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -628,17 +625,22 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
             outStream.close();
             return file;
         }
-    
+
+        // http://stackoverflow.com/a/7468636/577812
         private Bitmap getResizedBitmap(Bitmap bm, float factor) {
-            int width = bm.getWidth();
-            int height = bm.getHeight();
-            // create a matrix for the manipulation
-            Matrix matrix = new Matrix();
-            // resize the bit map
-            matrix.postScale(factor, factor);
-            // recreate the new Bitmap
-            Bitmap resizedBitmap = Bitmap.createBitmap(bm, 0, 0, width, height, matrix, false);
-            return resizedBitmap;
+            final int newWidth = (int) (bm.getWidth() * factor);
+            final int newHeight = (int) (bm.getHeight() * factor);
+
+            final Bitmap scaledBitmap = Bitmap.createBitmap(newWidth, newHeight, bm.getConfig());
+
+            final Matrix scaleMatrix = new Matrix();
+            scaleMatrix.setScale(factor, factor);
+
+            final Canvas canvas = new Canvas(scaledBitmap);
+            canvas.setMatrix(scaleMatrix);
+            canvas.drawBitmap(bm, 0, 0, new Paint(Paint.FILTER_BITMAP_FLAG));
+
+            return scaledBitmap;
         }
     }
     
