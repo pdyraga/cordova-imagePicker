@@ -56,8 +56,20 @@ public class ImagePicker extends CordovaPlugin {
 	
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
 		if (resultCode == Activity.RESULT_OK && data != null) {
-			ArrayList<String> fileNames = data.getStringArrayListExtra("MULTIPLEFILENAMES");
-			JSONArray res = new JSONArray(fileNames);
+			ArrayList<String> originalFileNames = data.getStringArrayListExtra("ORIGINAL_IMAGES");
+			ArrayList<String> resizedFileNames = data.getStringArrayListExtra("RESIZED_IMAGES");
+			ArrayList<JSONObject> results = new ArrayList<JSONObject>();
+			for (int i = 0; i < originalFileNames.size(); i++) {
+				JSONObject object = new JSONObject();
+				try {
+					object.put("originalUri", originalFileNames.get(i));
+					object.put("resizedUri", resizedFileNames.get(i));
+				} catch (JSONException exception) {
+					this.callbackContext.error("Could not serialize results to JSON");
+				}
+				results.add(object);
+			}
+			JSONArray res = new JSONArray(results);
 			this.callbackContext.success(res);
 		} else if (resultCode == Activity.RESULT_CANCELED && data != null) {
 			String error = data.getStringExtra("ERRORMESSAGE");

@@ -476,25 +476,24 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
         }
     }
     
-    
-    private class ResizeImagesTask extends AsyncTask<Set<Entry<String, Integer>>, Void, ArrayList<String>> {
+    private class ResizeImagesTask extends AsyncTask<Set<Entry<String, Integer>>, Void, ArrayList<ResizedImage>> {
         private Exception asyncTaskError = null;
 
         @Override
-        protected ArrayList<String> doInBackground(Set<Entry<String, Integer>>... fileSets) {
+        protected ArrayList<ResizedImage> doInBackground(Set<Entry<String, Integer>>... fileSets) {
             Set<Entry<String, Integer>> fileNames = fileSets[0];
-            ArrayList<String> al = new ArrayList<String>();
+            ArrayList<ResizedImage> result = new ArrayList<ResizedImage>();
             try {
                 Iterator<Entry<String, Integer>> i = fileNames.iterator();
                 Bitmap bmp;
                 while(i.hasNext()) {
                     Entry<String, Integer> imageInfo = i.next();
-                    File file = new File(imageInfo.getKey());
+                    File originalFile = new File(imageInfo.getKey());
                     int rotate = imageInfo.getValue().intValue();
                     BitmapFactory.Options options = new BitmapFactory.Options();
                     options.inSampleSize = 1;
                     options.inJustDecodeBounds = true;
-                    BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+                    BitmapFactory.decodeFile(originalFile.getAbsolutePath(), options);
                     int width = options.outWidth;
                     int height = options.outHeight;
                     float scale = calculateScale(width, height);
@@ -505,28 +504,28 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                         options = new BitmapFactory.Options();
                         options.inSampleSize = inSampleSize;
                         try {
-                            bmp = this.tryToGetBitmap(file, options, rotate, true);
+                            bmp = this.tryToGetBitmap(originalFile, options, rotate, true);
                         } catch (OutOfMemoryError e) {
                             options.inSampleSize = calculateNextSampleSize(options.inSampleSize);
                             try {
-                                bmp = this.tryToGetBitmap(file, options, rotate, false);
+                                bmp = this.tryToGetBitmap(originalFile, options, rotate, false);
                             } catch (OutOfMemoryError e2) {
                                 throw new IOException("Unable to load image into memory.");
                             }
                         }
                     } else {
                         try {
-                            bmp = this.tryToGetBitmap(file, null, rotate, false);
+                            bmp = this.tryToGetBitmap(originalFile, null, rotate, false);
                         } catch(OutOfMemoryError e) {
                             options = new BitmapFactory.Options();
                             options.inSampleSize = 2;
                             try {
-                                bmp = this.tryToGetBitmap(file, options, rotate, false);
+                                bmp = this.tryToGetBitmap(originalFile, options, rotate, false);
                             } catch(OutOfMemoryError e2) {
                                 options = new BitmapFactory.Options();
                                 options.inSampleSize = 4;
                                 try {
-                                    bmp = this.tryToGetBitmap(file, options, rotate, false);
+                                    bmp = this.tryToGetBitmap(originalFile, options, rotate, false);
                                 } catch (OutOfMemoryError e3) {
                                     throw new IOException("Unable to load image into memory.");
                                 }
@@ -534,28 +533,26 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                         }
                     }
 
-                    file = this.storeImage(bmp, file.getName());
-                    al.add(Uri.fromFile(file).toString());
+                    File scaledFile = this.storeImage(bmp, "scaled_" + originalFile.getName());
+                    result.add(new ResizedImage(originalFile, scaledFile));
                 }
-                return al;
+                return result;
             } catch(IOException e) {
                 try {
                     asyncTaskError = e;
-                    for (int i = 0; i < al.size(); i++) {
-                        URI uri = new URI(al.get(i));
-                        File file = new File(uri);
-                        file.delete();
+                    for (final ResizedImage resizedImage: result) {
+                        new File(new URI(resizedImage.getResizedImageUri())).delete();
                     }
                 } catch(Exception exception) {
                     // the finally does what we want to do
                 } finally {
-                    return new ArrayList<String>();
+                    return new ArrayList<ResizedImage>();
                 }
             }
         }
         
         @Override
-        protected void onPostExecute(ArrayList<String> al) {
+        protected void onPostExecute(ArrayList<ResizedImage> al) {
             Intent data = new Intent();
 
             if (asyncTaskError != null) {
@@ -565,7 +562,8 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                 setResult(RESULT_CANCELED, data);
             } else if (al.size() > 0) {
                 Bundle res = new Bundle();
-                res.putStringArrayList("MULTIPLEFILENAMES", al);
+                res.putStringArrayList("ORIGINAL_IMAGES", getOriginalImagesPaths(al));
+                res.putStringArrayList("RESIZED_IMAGES", getResizedImagesPaths(al));
                 if (imagecursor != null) {
                     res.putInt("TOTALFILES", imagecursor.getCount());
                 }
@@ -577,6 +575,22 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
 
             progress.dismiss();
             finish();
+        }
+
+        private ArrayList<String> getResizedImagesPaths(ArrayList<ResizedImage> images) {
+            ArrayList<String> paths = new ArrayList<String>();
+            for (ResizedImage image: images) {
+                paths.add(image.getResizedImageUri());
+            }
+            return paths;
+        }
+
+        private ArrayList<String> getOriginalImagesPaths(ArrayList<ResizedImage> images) {
+            ArrayList<String> paths = new ArrayList<String>();
+            for (ResizedImage image: images) {
+                paths.add(image.getOriginalImageUri());
+            }
+            return paths;
         }
 
         private Bitmap tryToGetBitmap(File file, BitmapFactory.Options options, int rotate, boolean shouldScale) throws IOException, OutOfMemoryError {
