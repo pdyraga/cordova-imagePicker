@@ -58,12 +58,14 @@ public class ImagePicker extends CordovaPlugin {
 		if (resultCode == Activity.RESULT_OK && data != null) {
 			ArrayList<String> originalFileNames = data.getStringArrayListExtra("ORIGINAL_IMAGES");
 			ArrayList<String> resizedFileNames = data.getStringArrayListExtra("RESIZED_IMAGES");
+            float[] scaleFactors = data.getFloatArrayExtra("SCALE_FACTORS");
 			ArrayList<JSONObject> results = new ArrayList<JSONObject>();
 			for (int i = 0; i < originalFileNames.size(); i++) {
 				JSONObject object = new JSONObject();
 				try {
-					object.put("originalUri", originalFileNames.get(i));
-					object.put("resizedUri", resizedFileNames.get(i));
+					object.put("originalImageUri", originalFileNames.get(i));
+					object.put("previewImageUri", resizedFileNames.get(i));
+                    object.put("previewScaleFactor", scaleFactors[i]);
 				} catch (JSONException exception) {
 					this.callbackContext.error("Could not serialize results to JSON");
 				}

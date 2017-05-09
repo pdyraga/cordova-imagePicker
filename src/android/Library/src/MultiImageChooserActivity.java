@@ -115,6 +115,16 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
     
     private ProgressDialog progress;
 
+    private class ScaledBitmap {
+        public final Bitmap bitmap;
+        public final float scaleFactor;
+
+        public ScaledBitmap(Bitmap bitmap, float scaleFactor) {
+            this.bitmap = bitmap;
+            this.scaleFactor = scaleFactor;
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -485,7 +495,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
             ArrayList<ResizedImage> result = new ArrayList<ResizedImage>();
             try {
                 Iterator<Entry<String, Integer>> i = fileNames.iterator();
-                Bitmap bmp;
+                ScaledBitmap bmp;
                 while(i.hasNext()) {
                     Entry<String, Integer> imageInfo = i.next();
                     File originalFile = new File(imageInfo.getKey());
@@ -533,8 +543,8 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                         }
                     }
 
-                    File scaledFile = this.storeImage(bmp, "scaled_" + originalFile.getName());
-                    result.add(new ResizedImage(originalFile, scaledFile));
+                    File scaledFile = this.storeImage(bmp.bitmap, "scaled_" + originalFile.getName());
+                    result.add(new ResizedImage(originalFile, scaledFile, bmp.scaleFactor));
                 }
                 return result;
             } catch(IOException e) {
@@ -564,6 +574,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                 Bundle res = new Bundle();
                 res.putStringArrayList("ORIGINAL_IMAGES", getOriginalImagesPaths(al));
                 res.putStringArrayList("RESIZED_IMAGES", getResizedImagesPaths(al));
+                res.putFloatArray("SCALE_FACTORS", getScaleFactors(al));
                 if (imagecursor != null) {
                     res.putInt("TOTALFILES", imagecursor.getCount());
                 }
@@ -593,8 +604,17 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
             return paths;
         }
 
-        private Bitmap tryToGetBitmap(File file, BitmapFactory.Options options, int rotate, boolean shouldScale) throws IOException, OutOfMemoryError {
+        private float[] getScaleFactors(ArrayList<ResizedImage> images) {
+            float[] factors = new float[images.size()];
+            for (int i = 0; i < factors.length; i++) {
+                factors[i] = images.get(i).getScaleFactor();
+            }
+            return factors;
+        }
+
+        private ScaledBitmap tryToGetBitmap(File file, BitmapFactory.Options options, int rotate, boolean shouldScale) throws IOException, OutOfMemoryError {
             Bitmap bmp;
+            float scale = 1;
             if (options == null) {
                 bmp = BitmapFactory.decodeFile(file.getAbsolutePath());
             } else {
@@ -604,7 +624,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                 throw new IOException("The image file could not be opened.");
             }
             if (options != null && shouldScale) {
-                float scale = calculateScale(options.outWidth, options.outHeight);
+                scale = calculateScale(options.outWidth, options.outHeight);
                 bmp = this.getResizedBitmap(bmp, scale);
             }
             if (rotate != 0) {
@@ -612,7 +632,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                 matrix.setRotate(rotate);
                 bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), matrix, true);
             }
-            return bmp;
+            return new ScaledBitmap(bmp, scale);
         }
         
         /*
@@ -706,7 +726,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                 }
             }
         }
-        
+
         return scale;
     }
 }
