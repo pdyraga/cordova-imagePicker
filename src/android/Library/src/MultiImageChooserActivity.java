@@ -500,47 +500,11 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                     Entry<String, Integer> imageInfo = i.next();
                     File originalFile = new File(imageInfo.getKey());
                     int rotate = imageInfo.getValue().intValue();
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inSampleSize = 1;
-                    options.inJustDecodeBounds = true;
-                    BitmapFactory.decodeFile(originalFile.getAbsolutePath(), options);
-                    int width = options.outWidth;
-                    int height = options.outHeight;
-                    float scale = calculateScale(width, height);
-                    if (scale < 1) {
-                        int finalWidth = (int)(width * scale);
-                        int finalHeight = (int)(height * scale);
-                        int inSampleSize = calculateInSampleSize(options, finalWidth, finalHeight);
-                        options = new BitmapFactory.Options();
-                        options.inSampleSize = inSampleSize;
-                        try {
-                            bmp = this.tryToGetBitmap(originalFile, options, rotate, true);
-                        } catch (OutOfMemoryError e) {
-                            options.inSampleSize = calculateNextSampleSize(options.inSampleSize);
-                            try {
-                                bmp = this.tryToGetBitmap(originalFile, options, rotate, false);
-                            } catch (OutOfMemoryError e2) {
-                                throw new IOException("Unable to load image into memory.");
-                            }
-                        }
-                    } else {
-                        try {
-                            bmp = this.tryToGetBitmap(originalFile, null, rotate, false);
-                        } catch(OutOfMemoryError e) {
-                            options = new BitmapFactory.Options();
-                            options.inSampleSize = 2;
-                            try {
-                                bmp = this.tryToGetBitmap(originalFile, options, rotate, false);
-                            } catch(OutOfMemoryError e2) {
-                                options = new BitmapFactory.Options();
-                                options.inSampleSize = 4;
-                                try {
-                                    bmp = this.tryToGetBitmap(originalFile, options, rotate, false);
-                                } catch (OutOfMemoryError e3) {
-                                    throw new IOException("Unable to load image into memory.");
-                                }
-                            }
-                        }
+
+                    try {
+                        bmp = this.tryToGetBitmap(originalFile, rotate);
+                    } catch (OutOfMemoryError e) {
+                        throw new IOException("Unable to load image into memory.");
                     }
 
                     File scaledFile = this.storeImage(bmp.bitmap, "scaled_" + originalFile.getName());
@@ -612,19 +576,14 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
             return factors;
         }
 
-        private ScaledBitmap tryToGetBitmap(File file, BitmapFactory.Options options, int rotate, boolean shouldScale) throws IOException, OutOfMemoryError {
-            Bitmap bmp;
-            float scale = 1;
-            if (options == null) {
-                bmp = BitmapFactory.decodeFile(file.getAbsolutePath());
-            } else {
-                bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), options);
-            }
+        private ScaledBitmap tryToGetBitmap(File file, int rotate) throws IOException, OutOfMemoryError {
+            Bitmap bmp = BitmapFactory.decodeFile(file.getAbsolutePath());
+            float scale = calculateScale(bmp.getWidth(), bmp.getHeight());
+
             if (bmp == null) {
                 throw new IOException("The image file could not be opened.");
             }
-            if (options != null && shouldScale) {
-                scale = calculateScale(options.outWidth, options.outHeight);
+            if (scale < 1) { // should scale?
                 bmp = this.getResizedBitmap(bmp, scale);
             }
             if (rotate != 0) {
@@ -678,31 +637,6 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
         }
     }
     
-    private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        // Raw height and width of image
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-        int inSampleSize = 1;
-    
-        if (height > reqHeight || width > reqWidth) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-    
-            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-            // height and width larger than the requested height and width.
-            while ((halfHeight / inSampleSize) > reqHeight && (halfWidth / inSampleSize) > reqWidth) {
-                inSampleSize *= 2;
-            }
-        }
-    
-        return inSampleSize;
-    }
-
-    private int calculateNextSampleSize(int sampleSize) {
-        double logBaseTwo = (int)(Math.log(sampleSize) / Math.log(2));
-        return (int)Math.pow(logBaseTwo + 1, 2);
-    }
-    
     private float calculateScale(int width, int height) {
         float widthScale = 1.0f;
         float heightScale = 1.0f;
@@ -719,7 +653,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
                 if (desiredHeight > 0 && desiredHeight < height) {
                     heightScale = (float)desiredHeight/height;
                 }
-                if (widthScale < heightScale) {
+                if (widthScale > heightScale) {
                     scale = widthScale;
                 } else {
                     scale = heightScale;
