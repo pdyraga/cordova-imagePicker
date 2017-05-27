@@ -12,6 +12,7 @@
 #import "ELCAssetTablePicker.h"
 
 #define CDV_PHOTO_PREFIX @"cdv_photo_"
+#define CDV_ORIGINAL_PHOTO_PREFIX @"cdv_original_photo_"
 
 @implementation SOSPicker
 
@@ -52,12 +53,17 @@
 
 - (void)elcImagePickerController:(ELCImagePickerController *)picker didFinishPickingMediaWithInfo:(NSArray *)info {
 	CDVPluginResult* result = nil;
-	NSMutableArray *resultStrings = [[NSMutableArray alloc] init];
+
+    NSMutableArray *originalImages = [[NSMutableArray alloc] init];
+    NSMutableArray *scaledImages = [[NSMutableArray alloc] init];
+    NSMutableArray *scaleFactors = [[NSMutableArray alloc] init];
+
     NSData* data = nil;
     NSString* docsPath = [NSTemporaryDirectory()stringByStandardizingPath];
     NSError* err = nil;
     NSFileManager* fileMgr = [[NSFileManager alloc] init];
-    NSString* filePath;
+    NSString* originalFilePath;
+    NSString* scaledFilePath;
     ALAsset* asset = nil;
     UIImageOrientation orientation = UIImageOrientationUp;;
     CGSize targetSize = CGSizeMake(self.width, self.height);
@@ -67,8 +73,13 @@
 
         int i = 1;
         do {
-            filePath = [NSString stringWithFormat:@"%@/%@%03d.%@", docsPath, CDV_PHOTO_PREFIX, i++, @"jpg"];
-        } while ([fileMgr fileExistsAtPath:filePath]);
+            scaledFilePath = [NSString stringWithFormat:@"%@/%@%03d.%@", docsPath, CDV_PHOTO_PREFIX, i++, @"jpg"];
+        } while ([fileMgr fileExistsAtPath:scaledFilePath]);
+
+        int j = 1;
+        do {
+            originalFilePath = [NSString stringWithFormat:@"%@/%@%03d.%@", docsPath, CDV_ORIGINAL_PHOTO_PREFIX, j++, @"jpg"];
+        } while ([fileMgr fileExistsAtPath:originalFilePath]);
         
         @autoreleasepool {
             ALAssetRepresentation *assetRep = [asset defaultRepresentation];
@@ -83,26 +94,60 @@
                 imgRef = [assetRep fullScreenImage];
             }
             
+            //
+            // copy selected image to tmp directory
+            //
+            Byte *buffer = (Byte*)malloc(assetRep.size);
+            NSUInteger buffered = [assetRep getBytes:buffer fromOffset:0 length:assetRep.size error:nil];
+            NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
+            if (![data writeToFile:originalFilePath options:NSAtomicWrite error:&err]) {
+                result = [CDVPluginResult resultWithStatus:CDVCommandStatus_IO_EXCEPTION messageAsString:[err localizedDescription]];
+                break;
+            } else {               
+                [originalImages addObject:[[NSURL fileURLWithPath:originalFilePath] absoluteString]];
+            }
+
+            //
+            // scale selected image and save it in separate file in tmp directory
+            //
             UIImage* image = [UIImage imageWithCGImage:imgRef scale:1.0f orientation:orientation];
+
             if (self.width == 0 && self.height == 0) {
+                [scaleFactors addObject:[NSNumber numberWithFloat:1.0f]];
                 data = UIImageJPEGRepresentation(image, self.quality/100.0f);
-            } else {
-                UIImage* scaledImage = [self imageByScalingNotCroppingForSize:image toSize:targetSize];
+            } else {                
+                CGFloat scaleFactor = [self computeScaleFactor:image toSize:targetSize];
+                [scaleFactors addObject:[NSNumber numberWithFloat:scaleFactor]];
+                UIImage* scaledImage = [self imageByScalingNotCroppingForSize:image toSize:targetSize scaleFactor:scaleFactor];
                 data = UIImageJPEGRepresentation(scaledImage, self.quality/100.0f);
             }
             
-            if (![data writeToFile:filePath options:NSAtomicWrite error:&err]) {
+            if (![data writeToFile:scaledFilePath options:NSAtomicWrite error:&err]) {
                 result = [CDVPluginResult resultWithStatus:CDVCommandStatus_IO_EXCEPTION messageAsString:[err localizedDescription]];
                 break;
             } else {
-                [resultStrings addObject:[[NSURL fileURLWithPath:filePath] absoluteString]];
+                [scaledImages addObject:[[NSURL fileURLWithPath:scaledFilePath] absoluteString]];
             }
         }
 
 	}
 	
 	if (nil == result) {
-		result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:resultStrings];
+       NSMutableArray *images = [[NSMutableArray alloc] init];         
+       NSUInteger index = 0;
+
+       for (NSURL *scaledImage in scaledImages) {
+           NSDictionary *jsonObj = @{
+               @"previewImageUri" : scaledImage,
+               @"originalImageUri" : originalImages[index],
+               @"previewScaleFactor" : scaleFactors[index]
+           };
+           [images addObject:jsonObj];
+
+           index++;
+       }
+
+		result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:images];
 	}
 
 	[self.viewController dismissViewControllerAnimated:YES completion:nil];
@@ -117,17 +162,14 @@
 	[self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
 }
 
-- (UIImage*)imageByScalingNotCroppingForSize:(UIImage*)anImage toSize:(CGSize)frameSize
+- (CGFloat)computeScaleFactor:(UIImage*)anImage toSize:(CGSize)frameSize
 {
-    UIImage* sourceImage = anImage;
-    UIImage* newImage = nil;
-    CGSize imageSize = sourceImage.size;
+    CGSize imageSize = anImage.size;
     CGFloat width = imageSize.width;
     CGFloat height = imageSize.height;
     CGFloat targetWidth = frameSize.width;
     CGFloat targetHeight = frameSize.height;
-    CGFloat scaleFactor = 0.0;
-    CGSize scaledSize = frameSize;
+    CGFloat scaleFactor = 1.0;
 
     if (CGSizeEqualToSize(imageSize, frameSize) == NO) {
         CGFloat widthFactor = targetWidth / width;
@@ -142,8 +184,25 @@
             scaleFactor = heightFactor; // scale to fit height
         } else {
             scaleFactor = widthFactor; // scale to fit width
-        }
-        scaledSize = CGSizeMake(width * scaleFactor, height * scaleFactor);
+        }        
+    }
+
+    return scaleFactor;   
+}
+
+- (UIImage*)imageByScalingNotCroppingForSize:(UIImage*)anImage toSize:(CGSize)frameSize scaleFactor:(CGFloat)scaleFactor
+{
+    UIImage* sourceImage = anImage;
+    UIImage* newImage = nil;
+
+    CGSize imageSize = sourceImage.size;
+    CGFloat width = imageSize.width;
+    CGFloat height = imageSize.height;
+
+    CGSize scaledSize = frameSize;
+
+    if (scaleFactor != 1.0) {
+      scaledSize = CGSizeMake(width * scaleFactor, height * scaleFactor);
     }
 
     UIGraphicsBeginImageContext(scaledSize); // this will resize
