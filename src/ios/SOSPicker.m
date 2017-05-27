@@ -181,9 +181,9 @@
         } else if (heightFactor == 0.0) {
             scaleFactor = widthFactor;
         } else if (widthFactor > heightFactor) {
-            scaleFactor = heightFactor; // scale to fit height
-        } else {
             scaleFactor = widthFactor; // scale to fit width
+        } else {
+            scaleFactor = heightFactor; // scale to fit height
         }        
     }
 
