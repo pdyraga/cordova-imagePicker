@@ -69,8 +69,10 @@
 		</config-file>
 		
 		<config-file target="AndroidManifest.xml" parent="/manifest/application">
-		    <activity android:label="@string/multi_app_name" android:name="com.synconset.MultiImageChooserActivity" android:theme="@android:style/Theme.Holo.Light">
-            </activity>
+		    <activity android:label="@string/multi_app_name" 
+				          android:name="com.synconset.MultiImageChooserActivity" 
+									android:theme="@style/ImagePickerStyle">
+        </activity>
 		</config-file>
 		
 		<config-file target="AndroidManifest.xml" parent="/manifest">
@@ -84,7 +86,7 @@
 		<source-file src="src/android/Library/src/ImageFetcher.java" target-dir="src/com/synconset"/>
 		<source-file src="src/android/Library/src/MultiImageChooserActivity.java" target-dir="src/com/synconset"/>
 		
-        <source-file src="src/android/Library/res/anim/image_pop_in.xml" target-dir="res/anim"/>
+    <source-file src="src/android/Library/res/anim/image_pop_in.xml" target-dir="res/anim"/>
 		<source-file src="src/android/Library/res/drawable/grid_background.xml" target-dir="res/drawable"/>
 		<source-file src="src/android/Library/res/drawable-hdpi/image_bg.9.png" target-dir="res/drawable-hdpi"/>
 		<source-file src="src/android/Library/res/drawable-hdpi/loading_icon.png" target-dir="res/drawable-hdpi"/>
@@ -103,7 +105,6 @@
 		<source-file src="src/android/Library/res/layout/actionbar_done_button.xml" target-dir="res/layout"/>
 		<source-file src="src/android/Library/res/layout/multiselectorgrid.xml" target-dir="res/layout"/>
 		<source-file src="src/android/Library/res/values/multiimagechooser_strings_en.xml" target-dir="res/values"/>
-		<source-file src="src/android/Library/res/values/themes.xml" target-dir="res/values"/>
 		
 		<source-file src="src/android/Library/res/values-de/multiimagechooser_strings_de.xml" target-dir="res/values-de"/>
 		<source-file src="src/android/Library/res/values-es/multiimagechooser_strings_es.xml" target-dir="res/values-es"/>
