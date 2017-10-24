@@ -115,6 +115,8 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
     
     private ProgressDialog progress;
 
+    private int imagePickerDialogStyleId;
+
     private class ScaledBitmap {
         public final Bitmap bitmap;
         public final float scaleFactor;
@@ -131,6 +133,8 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
         fakeR = new FakeR(this);
         setContentView(fakeR.getId("layout", "multiselectorgrid"));
         fileNames.clear();
+
+        imagePickerDialogStyleId = getResources().getIdentifier("ImagePickerDialogStyle", "style", getPackageName());
 
         maxImages = getIntent().getIntExtra(MAX_IMAGES_KEY, NOLIMIT);
         desiredWidth = getIntent().getIntExtra(WIDTH_KEY, 0);
@@ -179,7 +183,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
         getLoaderManager().initLoader(CURSORLOADER_REAL, null, this);
         setupHeader();
         updateAcceptButton();
-        progress = new ProgressDialog(this);
+        progress = new ProgressDialog(this, this.imagePickerDialogStyleId);
         progress.setTitle("Processing Images");
         progress.setMessage("This may take a few moments");
     }
@@ -195,7 +199,7 @@ public class MultiImageChooserActivity extends Activity implements OnItemClickLi
         boolean isChecked = !isChecked(position);
         if (maxImages == 0 && isChecked) {
             isChecked = false;
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, this.imagePickerDialogStyleId);
             builder.setTitle("Maximum " + maxImageCount + " Photos");
             builder.setMessage("You can only select " + maxImageCount + " photos at a time.");
             builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
