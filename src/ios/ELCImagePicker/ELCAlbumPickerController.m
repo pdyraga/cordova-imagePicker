@@ -29,7 +29,9 @@
 	[self.navigationItem setTitle:@"Loading..."];
 
     UIBarButtonItem *cancelButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self.parent action:@selector(cancelImagePicker)];
+    [cancelButton setTitleTextAttributes:@{NSForegroundColorAttributeName:[UIColor colorWithRed:0.21 green:0.85 blue:0.88 alpha:1.0]} forState:UIControlStateNormal];
 	[self.navigationItem setRightBarButtonItem:cancelButton];
+
 
     NSMutableArray *tempArray = [[NSMutableArray alloc] init];
 	self.assetGroups = tempArray;

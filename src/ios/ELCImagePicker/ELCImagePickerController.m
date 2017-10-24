@@ -51,11 +51,16 @@
     if (!shouldSelect) {
         NSString *title = [NSString stringWithFormat:NSLocalizedString(@"Maximum %d photos.", nil), self.maximumImagesCount];
         NSString *message = [NSString stringWithFormat:NSLocalizedString(@"You can only select %d photos at a time.", nil), self.maximumImagesCount];
-        [[[UIAlertView alloc] initWithTitle:title
-                                    message:message
-                                   delegate:nil
-                          cancelButtonTitle:nil
-                          otherButtonTitles:NSLocalizedString(@"Okay", nil), nil] show];
+        NSString *confirmation = [NSString stringWithFormat:NSLocalizedString(@"Okay", nil)];
+
+        UIAlertController *alertController = [UIAlertController
+                                      alertControllerWithTitle:title
+                                      message:message
+                                      preferredStyle:UIAlertControllerStyleActionSheet];
+        UIAlertAction *confirmAction = [UIAlertAction actionWithTitle:confirmation style:UIAlertActionStyleCancel handler:nil];
+        [alertController addAction:confirmAction];
+        [self presentViewController:alertController animated:YES completion:nil];
+        [alertController.view setTintColor:[UIColor colorWithRed:0.21 green:0.85 blue:0.88 alpha:1.0]];
     }
     return shouldSelect;
 }

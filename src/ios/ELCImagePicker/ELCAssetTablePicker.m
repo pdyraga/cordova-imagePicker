@@ -43,8 +43,11 @@
         
     } else {
         UIBarButtonItem *doneButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(doneAction:)];
+        [doneButtonItem setTitleTextAttributes:@{NSForegroundColorAttributeName:[UIColor colorWithRed:0.21 green:0.85 blue:0.88 alpha:1.0]} forState:UIControlStateNormal];
         [self.navigationItem setRightBarButtonItem:doneButtonItem];
         [self.navigationItem setTitle:@"Loading..."];
+
+        self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:0.21 green:0.85 blue:0.88 alpha:1.0];
     }
 
 	[self performSelectorInBackground:@selector(preparePhotos) withObject:nil];
